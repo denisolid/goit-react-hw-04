@@ -1,20 +1,16 @@
-import ImageCard from "./ImageCard/ImageCard";
+import { ImageCard } from "./ImageCard/ImageCard";
 
-const ImageGallery = ({ images, openModal, closeModal }) => {
+import s from "./ImageGallery.module.css";
+
+const ImageGallery = ({ images, openModal }) => {
   return (
-    <div>
-      <ul>
-        {images.map((image) => (
-          <li key={image.id}>
-            <ImageCard
-              image={image}
-              openModal={openModal}
-              closeModal={closeModal}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className={s.gallery}>
+      {images.map((image) => (
+        <li key={image.id}>
+          <ImageCard item={image} openModal={openModal} />
+        </li>
+      ))}
+    </ul>
   );
 };
 

@@ -1,71 +1,93 @@
 import { useEffect, useState } from "react";
 import ImageGallery from "./ImageGallery/ImageGallery";
-import { fetchData } from "../services/api";
-import { SearchBar } from "./SearchBar/SearchBar";
-import { LineWave } from "react-loader-spinner";
+import { searchImages } from "../services/api";
+import SearchBar from "./SearchBar/SearchBar";
+import Loader from "./Loader/Loader";
+import ErrorMessage from "./ErrorMessage/ErrorMessage";
+import LoadMoreBtn from "./LoadMoreBtn/LoadMoreBtn";
+import ImageModal from "./ImageModal/ImageModal";
+import Modal from "react-modal";
+import s from "./App.module.css";
 
-export const App = () => {
+Modal.setAppElement("#root");
+
+const App = () => {
   const [images, setImages] = useState([]);
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [isError, setIsError] = useState(false);
-  const [page, setPage] = useState(0);
-  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [noResults, setNoResults] = useState(false); // Додана нова змінна стану
 
   useEffect(() => {
-    const getData = async () => {
+    if (!query) return;
+
+    const fetchImages = async () => {
+      setIsLoading(true);
       try {
-        setIsLoading(true);
-        setIsError(false);
-        const response = await fetchData(query, 5);
-        console.log(response);
-        console.log(response.results.color);
-        setImages((prev) => [...prev, ...response.results]);
-        setTotal(response.nbPages);
-      } catch (error) {
-        console.log(error);
-        setIsError(true);
+        const data = await searchImages(query, page);
+        if (data.results.length === 0 && page === 1) {
+          setNoResults(true);
+        } else {
+          setNoResults(false);
+        }
+        setImages((prevImages) => [...prevImages, ...data.results]);
+      } catch (err) {
+        setError("Failed to fetch images");
       } finally {
         setIsLoading(false);
       }
     };
-    getData();
+
+    fetchImages();
   }, [query, page]);
 
-  const handleSetQuery = (query) => {
-    setQuery(query);
+  const handleSearchSubmit = (newQuery) => {
+    setQuery(newQuery);
+    setPage(1);
     setImages([]);
-    setPage(0);
+    setNoResults(false);
   };
+
+  const handleLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
+  };
+
+  const openModal = (description, imageUrl) => {
+    setSelectedImage({ description, imageUrl });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedImage(null);
+  };
+
   return (
     <div>
-      {total > page && !isLoading && (
-        <button onClick={() => setPage((prev) => prev + 1)}>Load more</button>
+      <SearchBar setQuery={handleSearchSubmit} />
+      {error && <ErrorMessage message={error} />}
+      {noResults && (
+        <div className={s.notification}>
+          No images found for your search query
+        </div>
       )}
-      <SearchBar setQuery={handleSetQuery} />
-      {isLoading && (
-        <LineWave
-          visible={true}
-          height="100"
-          width="100"
-          color="#4fa94d"
-          ariaLabel="line-wave-loading"
-          wrapperStyle={{}}
-          wrapperClass=""
-          firstLineColor=""
-          middleLineColor=""
-          lastLineColor=""
+      <ImageGallery images={images} openModal={openModal} />
+      {isLoading && <Loader />}
+      {images.length > 0 && !isLoading && !noResults && (
+        <LoadMoreBtn onClick={handleLoadMore} />
+      )}
+      {selectedImage && (
+        <ImageModal
+          isOpen={isModalOpen}
+          onRequestClose={closeModal}
+          image={selectedImage}
         />
       )}
-      {isError && <p>Something went wrong! Try again...</p>}
-      <ImageGallery items={images} />
     </div>
   );
 };
 
-// useEffect(() => {
-//   axios
-//     .get("https://hn.algolia.com/api/v1/search?query=react")
-//     .then((res) => setHits(res.data.hits))
-//     .catch();
-// }, []);
+export default App;
